@@ -5,7 +5,9 @@
 --
 --
 
-module Fco.Core.Console where
+module Fco.Core.Console (
+  ConWChan, ConRChan,
+  handleConMsg, setupConsole) where
 
 import BasicPrelude
 import qualified Data.Text as T
@@ -15,37 +17,38 @@ import Control.Monad (forever)
 import GHC.Generics (Generic)
 
 import Control.Distributed.Process (
-    Process, ProcessId,
-    expect, send, spawnLocal)
+    Process, ProcessId, ReceivePort, SendPort,
+    newChan, receiveChan, sendChan, spawnLocal)
 
-import Fco.Core.Messaging
+import Fco.Core.Messaging (CtlMsg (QuitMsg))
 
 
--- console service
+type ConWChan = (SendPort Text, ReceivePort Text)
+type ConRChan = (SendPort Text, ReceivePort Text)
 
-data ConMsg = ConMsg Text
-  deriving (Show, Generic, Typeable)
-instance Binary ConMsg
 
-setupConsole :: ProcessId -> Process ProcessId
-setupConsole parent = do
-    spawnLocal (conWriter parent) >>= return
+setupConsole :: SendPort CtlMsg
+      -> Process (ProcessId, SendPort Text, ReceivePort Text)
+setupConsole ctlSend = do
+    (conWSend, conWRecv) <- newChan :: Process ConWChan
+    (conRSend, conRRecv) <- newChan :: Process ConRChan
+    conW <- spawnLocal $ conWriter ctlSend conWRecv conRSend
+    return (conW, conWSend, conRRecv)
 
-conWriter :: ProcessId -> Process ()
-conWriter parent = do
-    pidR <- spawnLocal $ conReader parent
-    forever $ expect >>= putStrLn
+conWriter :: SendPort CtlMsg -> ReceivePort Text -> SendPort Text -> Process ()
+conWriter ctlSend conWRecv conRSend = do
+    conR <- spawnLocal $ conReader ctlSend conRSend
+    forever $ receiveChan conWRecv >>= putStrLn
 
-conReader :: ProcessId -> Process ()
-conReader parent =
+conReader :: SendPort CtlMsg -> SendPort Text -> Process ()
+conReader ctlSend conRSend =
     forever $ do
       line <- getLine
       case line of
-        "bye" -> send parent QuitMsg
-        _ -> send parent $ ConMsg line
-
-handleConMsg :: ProcessId -> ConMsg -> Process Bool
-handleConMsg pid (ConMsg txt) = 
-    send pid txt >> return True
+        "bye" -> sendChan ctlSend QuitMsg
+        _ -> sendChan conRSend line
 
 
+handleConMsg :: SendPort Text -> Text -> Process Bool
+handleConMsg port txt = 
+    sendChan port txt >> return True

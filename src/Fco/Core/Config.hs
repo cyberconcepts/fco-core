@@ -19,31 +19,31 @@ import GHC.Generics (Generic)
 
 import Control.Distributed.Process (
     Process, ProcessId,
-    expect, getSelfPid, match, receiveWait, send, spawnLocal)
+    expect, getSelfPid, match, newChan, receiveChan, receiveWait, 
+    send, sendChan, spawnLocal)
 
-
--- config data service
 
 type ConfigStore = HM.HashMap Text Value
 
-data CfgMsg = CfgQuery ProcessId Text | CfgUpdate Text Text
+data CfgRequest = CfgQuery ProcessId Text | CfgUpdate Text Text
   deriving (Show, Generic, Typeable)
-instance Binary CfgMsg
+instance Binary CfgRequest
+
+data CfgResponse = CfgResponse Text
+  deriving (Show, Generic, Typeable)
+instance Binary CfgResponse
+
 
 setupConfig :: ProcessId -> Process ProcessId
 setupConfig parent = do
-    config <- liftIO loadConfig
-    spawnLocal (cfgListen parent config) >>= return
+    configData <- liftIO loadConfig
+    spawnLocal $ cfgListen parent configData
 
 cfgListen :: ProcessId -> ConfigStore -> Process ()
-cfgListen parent config = do
+cfgListen parent cfgData =
     forever $ do 
-      msg <- (expect :: Process CfgMsg)
+      msg <- (expect :: Process CfgRequest)
       return ()
-
-handleCfgMsg :: ProcessId -> CfgMsg -> Process Bool
-handleCfgMsg pid msg = 
-    send pid msg >> return True
 
 
 -- legacy: load config for Pocket interface

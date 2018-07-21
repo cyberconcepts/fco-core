@@ -4,51 +4,43 @@
 --
 --
 
-module Fco.Core.Demo where
+module Fco.Core.Demo (run) where
 
 import BasicPrelude
 
 import Control.Distributed.Process (
-    Process, ProcessId,
-    getSelfPid, match, receiveWait, send)
-import Control.Distributed.Process.Backend.SimpleLocalnet (
-    initializeBackend, newLocalNode)
-import Control.Distributed.Process.Node (
-    initRemoteTable, runProcess)
+    Process, ProcessId, ReceivePort, SendPort,
+    getSelfPid, matchChan, newChan, receiveWait, sendChan)
 
 import Fco.Core.Config (setupConfig)
-import Fco.Core.Console (ConMsg (ConMsg), handleConMsg, setupConsole)
-import Fco.Core.Messaging (CtlMsg (QuitMsg))
+import Fco.Core.Console (handleConMsg, setupConsole)
+import Fco.Core.Messaging (CtlChan, CtlMsg (QuitMsg), runMain)
 import Fco.Core.Types (GraphResp)
-
-
-host = "127.0.0.1"
-port = "8899"
 
 
 -- message handlers
 
-handleQuit :: ProcessId -> CtlMsg -> Process Bool
-handleQuit pid QuitMsg = 
-    send pid ("bye\n" :: Text) >> return False
+handleQuit :: SendPort Text -> CtlMsg -> Process Bool
+handleQuit port QuitMsg = 
+    sendChan port "stopping application\n" >> return False
 
 
 -- application
 
 run :: IO ()
-run = do
-    backend <- initializeBackend host port initRemoteTable
-    node <- newLocalNode backend
-    runProcess node $ do
-      self <- getSelfPid
-      configSrv <- setupConfig self
-      conW <- setupConsole self
-      loop conW
-      where 
-        loop conW = do
-          continue <- receiveWait [
-                match $ handleQuit conW, 
-                match $ handleConMsg conW]
-          case continue of
-            True -> loop  conW
-            _ -> return ()
+run = 
+  runMain $ do
+    self <- getSelfPid
+    (ctlSend, ctlRecv) <- newChan :: Process CtlChan
+    configSrv <- setupConfig self
+    -- (cfgSrv, cfgReqSend) <- setupConfig self
+    (conW, conWSend, conRRecv) <- setupConsole ctlSend --cfgReqSend
+    loop (ctlRecv, conRRecv, conWSend)
+    where 
+      loop params@(ctlRecv, conRRecv, conWSend) = do
+        continue <- receiveWait [
+              matchChan ctlRecv $ handleQuit conWSend,
+              matchChan conRRecv $ handleConMsg conWSend]
+        case continue of
+          True -> loop params
+          _ -> return ()
