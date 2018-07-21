@@ -10,7 +10,8 @@ packages:
 #- '../rdf4h'
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
-extra-deps: [hgal-2.0.0.2]
+extra-deps: []
+#extra-deps: [hgal-2.0.0.2]
 
 # Override default flag values for local packages and extra-deps
 flags: {}

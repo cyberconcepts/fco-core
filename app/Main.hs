@@ -1,6 +1,6 @@
 module Main where
 
-import Data.String.Strip
+import Fco.Core.Demo (run)
 
 main :: IO ()
-main = interact strip
+main = run

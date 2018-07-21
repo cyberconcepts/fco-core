@@ -1,22 +1,56 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveGeneric #-}
+
+-- |
+--
+--
 
 module Fco.Core.Types where
 
 import BasicPrelude
 
--- types
+import Data.Binary (Binary)
+import GHC.Generics (Generic)
 
-data Namespace = Namespace IRI Prefix deriving (Eq, Ord, Show)
 
-data Node = Node Namespace Name deriving (Eq, Ord, Show)
+-- RDF triples
 
-data Triple = Triple Subject Predicate Object deriving (Eq, Ord)
-
-data Object = NodeObj Node | TextObj Text deriving (Eq, Ord, Show)
-
-type Name = Text
 type IRI = Text
 type Prefix = Text
 
-type Subject = Node
-type Predicate = Node
+data Namespace = Namespace IRI Prefix deriving (Eq, Ord, Show)
+
+type NodeName = Text
+type Subject = NodeName
+type Predicate = NodeName
+
+data Object = NodeObj NodeName | TextObj Text 
+  deriving (Eq, Ord, Show, Generic, Typeable)
+instance Binary Object
+
+data Triple = Triple Subject Predicate Object 
+  deriving (Eq, Ord, Show, Generic, Typeable)
+instance Binary Triple
+
+
+-- query types
+
+data QuCrit a = IsEqual a | Ignore 
+  deriving (Eq, Show, Generic, Typeable)
+instance Binary a => Binary (QuCrit a)
+
+data Query = Query (QuCrit NodeName) (QuCrit NodeName) (QuCrit Object)
+  deriving (Eq, Show, Generic, Typeable)
+instance Binary Query
+
+
+-- message types - actions and responses for (RDF) graphs
+
+data GraphMsg = GraphQuery Query | GraphUpdate Triple | GraphDelete Triple
+  deriving (Show, Generic, Typeable)
+instance Binary GraphMsg
+
+data GraphResp = GraphResp [Triple]
+  deriving (Show, Generic, Typeable)
+instance Binary GraphResp
+
