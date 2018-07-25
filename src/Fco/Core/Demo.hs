@@ -11,10 +11,11 @@ import BasicPrelude
 import Control.Distributed.Process (
     Process, ProcessId, ReceivePort, SendPort,
     getSelfPid, matchChan, newChan, receiveWait, sendChan)
+import Control.Monad.Extra (whileM)
 
 import Fco.Core.Config (setupConfig)
 import Fco.Core.Console (handleConMsg, setupConsole)
-import Fco.Core.Messaging (CtlChan, CtlMsg (QuitMsg), runMain)
+import Fco.Core.Messaging (CtlChan, CtlMsg (QuitMsg), runMainProcess)
 import Fco.Core.Types (GraphResp)
 
 
@@ -29,18 +30,11 @@ handleQuit port QuitMsg =
 
 run :: IO ()
 run = 
-  runMain $ do
-    self <- getSelfPid
+  runMainProcess $ do
     (ctlSend, ctlRecv) <- newChan :: Process CtlChan
-    configSrv <- setupConfig self
-    -- (cfgSrv, cfgReqSend) <- setupConfig self
+    (cfgSrv, cfgReqSend) <- setupConfig
     (conW, conWSend, conRRecv) <- setupConsole ctlSend --cfgReqSend
-    loop (ctlRecv, conRRecv, conWSend)
-    where 
-      loop params@(ctlRecv, conRRecv, conWSend) = do
-        continue <- receiveWait [
-              matchChan ctlRecv $ handleQuit conWSend,
-              matchChan conRRecv $ handleConMsg conWSend]
-        case continue of
-          True -> loop params
-          _ -> return ()
+    whileM $
+      receiveWait [
+          matchChan ctlRecv $ handleQuit conWSend,
+          matchChan conRRecv $ handleConMsg conWSend]

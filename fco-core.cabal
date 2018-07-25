@@ -28,6 +28,7 @@ library
                     , containers
                     , distributed-process
                     , distributed-process-simplelocalnet
+                    , extra
                     , text
                     , unordered-containers
                     , yaml

@@ -1,0 +1,22 @@
+
+core-console:
+    prompt: "fco: "
+    
+core-log:
+    stdout: true
+    files: []
+
+client-loops:
+    url: https://webapi.cyberconcepts.org/test
+    user: fco
+    password: funky
+
+client-pocket:
+    consumer-key: 12345-abcd1234abcd1234abcd1234
+    access-token: 5678defg-5678-defg-5678-defg56
+
+backend-pgsql:
+    dbname: fco01
+    dbuser: fco
+    dbpassword: funky
+

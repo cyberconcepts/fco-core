@@ -5,7 +5,7 @@
 --
 --
 
-module Fco.Core.Messaging (CtlChan, CtlMsg (..), runMain) where
+module Fco.Core.Messaging (CtlChan, CtlMsg (..), runMainProcess) where
 
 import BasicPrelude
 
@@ -22,8 +22,8 @@ host = "127.0.0.1"
 port = "8899"
 
 
-runMain :: Process () -> IO ()
-runMain proc = do
+runMainProcess :: Process () -> IO ()
+runMainProcess proc = do
     backend <- initializeBackend host port initRemoteTable
     node <- newLocalNode backend
     runProcess node proc
