@@ -21,6 +21,7 @@ library
                       Fco.Core.Demo
                       Fco.Core.Struct
                       Fco.Core.Types
+                      Fco.Core.Util
   build-depends:      base >= 4.7 && < 5
                     , basic-prelude
                     , aeson
