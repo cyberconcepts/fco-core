@@ -13,7 +13,7 @@ import Control.Distributed.Process (
     getSelfPid, matchChan, newChan, receiveWait, sendChan)
 import Control.Monad.Extra (whileM)
 
-import Fco.Core.Config (setupConfig)
+import Fco.Core.Config (setupConfigDef)
 import Fco.Core.Console (handleConMsg, setupConsole)
 import Fco.Core.Messaging (CtlChan, CtlMsg (QuitMsg), runMainProcess)
 import Fco.Core.Types (GraphResp)
@@ -32,7 +32,7 @@ run :: IO ()
 run = 
   runMainProcess $ do
     (ctlSend, ctlRecv) <- newChan :: Process CtlChan
-    (cfgSrv, cfgReqSend) <- setupConfig
+    (cfgSrv, cfgReqSend) <- setupConfigDef
     (conW, conWSend, conRRecv) <- setupConsole ctlSend --cfgReqSend
     whileM $
       receiveWait [

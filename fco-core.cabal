@@ -27,6 +27,7 @@ library
                     , aeson
                     , binary
                     , containers
+                    , directory
                     , distributed-process
                     , distributed-process-simplelocalnet
                     , extra

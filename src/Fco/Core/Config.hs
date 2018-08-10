@@ -8,7 +8,7 @@
 
 module Fco.Core.Config (
   CfgRequest (..), CfgResponse (..), 
-  setupConfig) where
+  setupConfig, setupConfigDef) where
 
 import BasicPrelude
 import qualified Data.Text as T
@@ -19,6 +19,8 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Yaml as Yaml
 import Control.Monad (forever)
 import GHC.Generics (Generic)
+import System.Directory (doesFileExist, findFile)
+import System.Environment (lookupEnv)
 
 import Control.Distributed.Process (
     Process, ProcessId, ReceivePort, SendPort,
@@ -48,9 +50,17 @@ type CfgReqChan = (SendPort CfgRequest, ReceivePort CfgRequest)
 type CfgRespChan = (SendPort CfgResponse, ReceivePort CfgResponse)
 
 
-setupConfig :: Process (ProcessId, SendPort CfgRequest)
-setupConfig = do
-    configData <- liftIO loadConfig
+setupConfigDef :: Process (ProcessId, SendPort CfgRequest)
+setupConfigDef =
+    -- TODO: use getArgs to retrieve path from commandline arguments
+    -- TODO: use findFile to check for candidates
+    liftIO (lookupEnv "config-fco") >>= \case
+      Just path -> setupConfig path
+      _ -> setupConfig "../data/config-fco.yaml"
+
+setupConfig :: FilePath -> Process (ProcessId, SendPort CfgRequest)
+setupConfig path = do
+    configData <- liftIO $ loadConfig path
     (cfgReqSend, cfgReqRecv) <- newChan :: Process CfgReqChan
     pid <- spawnLocal $ cfgListen (cfgReqRecv, configData)
     return (pid, cfgReqSend)
@@ -67,8 +77,8 @@ cfgListen =
 
 
 getDataFor :: DSKey -> ConfigStore -> DataSet
-getDataFor dskey cfgData = (dskey, 
-                            HM.toList (HM.lookupDefault HM.empty dskey cfgData))
+getDataFor dskey cfgData = 
+    (dskey, HM.toList (HM.lookupDefault HM.empty dskey cfgData))
 
 updateData :: DSKey -> CKey -> CValue -> ConfigStore -> ConfigStore
 updateData dskey key value cfgData =
@@ -77,14 +87,12 @@ updateData dskey key value cfgData =
             HM.insert k v (HM.lookupDefault HM.empty dskey dat)
 
 
-loadConfig :: IO ConfigStore
-loadConfig = do
-    let path = "../data/config-fco.yaml"
-        extractString = map (\(String vs) -> vs)
-        extractObject f = map (\(Object vo) -> f vo)
+loadConfig :: FilePath -> IO ConfigStore
+loadConfig path = do
+    let extractString = fmap (\(String vs) -> vs)
+        extractObject f = fmap (\(Object vo) -> f vo)
     Just conf <- Yaml.decodeFile path :: IO (Maybe Object)
     return $ extractObject extractString conf
-
 
 
 -- legacy: load config for Pocket interface
