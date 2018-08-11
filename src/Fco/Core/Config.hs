@@ -27,7 +27,8 @@ import Control.Distributed.Process (
     expect, getSelfPid, match, newChan, receiveChan, receiveWait, 
     send, sendChan, spawnLocal)
 
-import Fco.Core.Util (withData)
+import Fco.Core.Messaging (Channel)
+import Fco.Core.Util (whileDataM)
 
 
 type CKey = Text
@@ -46,8 +47,8 @@ data CfgResponse = CfgResponse DataSet
   deriving (Show, Generic, Typeable)
 instance Binary CfgResponse
 
-type CfgReqChan = (SendPort CfgRequest, ReceivePort CfgRequest)
-type CfgRespChan = (SendPort CfgResponse, ReceivePort CfgResponse)
+type CfgReqChan = Channel CfgRequest
+type CfgRespChan = Channel CfgResponse
 
 
 setupConfigDef :: Process (ProcessId, SendPort CfgRequest)
@@ -67,7 +68,7 @@ setupConfig path = do
 
 cfgListen :: (ReceivePort CfgRequest, ConfigStore) -> Process ()
 cfgListen =
-    withData $ \(cfgReqRecv, cfgData) ->
+    whileDataM $ \(cfgReqRecv, cfgData) ->
       receiveChan cfgReqRecv >>= \case
           CfgQuery port key -> do
               sendChan port $ CfgResponse $ getDataFor key cfgData

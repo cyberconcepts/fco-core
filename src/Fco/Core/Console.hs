@@ -20,11 +20,11 @@ import Control.Distributed.Process (
     Process, ProcessId, ReceivePort, SendPort,
     newChan, receiveChan, sendChan, spawnLocal)
 
-import Fco.Core.Messaging (CtlMsg (QuitMsg))
+import Fco.Core.Messaging (Channel, CtlMsg (QuitMsg))
 
 
-type ConWChan = (SendPort Text, ReceivePort Text)
-type ConRChan = (SendPort Text, ReceivePort Text)
+type ConWChan = Channel Text
+type ConRChan = Channel Text
 
 
 setupConsole :: SendPort CtlMsg

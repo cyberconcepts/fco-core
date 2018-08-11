@@ -5,7 +5,9 @@
 --
 --
 
-module Fco.Core.Messaging (CtlChan, CtlMsg (..), runMainProcess) where
+module Fco.Core.Messaging (
+    Channel, CtlChan, CtlMsg (..), 
+    runMainProcess) where
 
 import BasicPrelude
 
@@ -16,6 +18,9 @@ import Control.Distributed.Process.Backend.SimpleLocalnet (
 import Control.Distributed.Process.Node (
     initRemoteTable, runProcess)
 import GHC.Generics (Generic)
+
+
+type Channel a = (SendPort a, ReceivePort a)
 
 
 host = "127.0.0.1"
@@ -29,11 +34,11 @@ runMainProcess proc = do
     runProcess node proc
 
 
--- standard message types
+-- standard message and channel types
 
 data CtlMsg = QuitMsg
   deriving (Show, Generic, Typeable)
 instance Binary CtlMsg
 
 
-type CtlChan = (SendPort CtlMsg, ReceivePort CtlMsg)
+type CtlChan = Channel CtlMsg

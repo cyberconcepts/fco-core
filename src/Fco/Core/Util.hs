@@ -5,13 +5,13 @@
 --
 --
 
-module Fco.Core.Util (withData) where
+module Fco.Core.Util (whileDataM) where
 
 import BasicPrelude
 
 
-withData :: Monad m => (s -> m (Maybe s)) -> s -> m ()
-withData act state =
+whileDataM :: Monad m => (s -> m (Maybe s)) -> s -> m ()
+whileDataM act state =
     act state >>= \case
       Nothing -> return ()
-      Just newState -> withData act newState
+      Just newState -> whileDataM act newState
