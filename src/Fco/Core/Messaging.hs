@@ -6,7 +6,7 @@
 --
 
 module Fco.Core.Messaging (
-    Channel, CtlChan, CtlMsg (..), 
+    Channel, CtlChan, CtlMsg (..), NotifChan, Notification (..),
     runMainProcess) where
 
 import BasicPrelude
@@ -36,9 +36,16 @@ runMainProcess proc = do
 
 -- standard message and channel types
 
-data CtlMsg = QuitMsg
+data Notification = RequestQuit | AckQuit | InfoNotif Text | ErrorNotif Text
+  deriving (Show, Generic, Typeable)
+instance Binary Notification
+
+type NotifChan = Channel Notification
+
+
+data CtlMsg = DoQuit | InfoMsg Text
   deriving (Show, Generic, Typeable)
 instance Binary CtlMsg
 
-
 type CtlChan = Channel CtlMsg
+

@@ -17,17 +17,16 @@ import Data.Aeson (encode, object, (.=), Object, Value (Object, String))
 import Data.Binary (Binary)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Yaml as Yaml
-import Control.Monad (forever)
 import GHC.Generics (Generic)
 import System.Directory (doesFileExist, findFile)
 import System.Environment (lookupEnv)
 
 import Control.Distributed.Process (
     Process, ProcessId, ReceivePort, SendPort,
-    expect, getSelfPid, match, newChan, receiveChan, receiveWait, 
+    expect, getSelfPid, match, matchChan, newChan, receiveChan, receiveWait, 
     send, sendChan, spawnLocal)
 
-import Fco.Core.Messaging (Channel)
+import Fco.Core.Messaging (Channel, CtlChan, CtlMsg (DoQuit))
 import Fco.Core.Util (whileDataM)
 
 
@@ -43,7 +42,7 @@ data CfgRequest = CfgQuery (SendPort CfgResponse) DSKey
   deriving (Show, Generic, Typeable)
 instance Binary CfgRequest
 
-data CfgResponse = CfgResponse DataSet
+newtype CfgResponse = CfgResponse DataSet
   deriving (Show, Generic, Typeable)
 instance Binary CfgResponse
 
@@ -51,7 +50,7 @@ type CfgReqChan = Channel CfgRequest
 type CfgRespChan = Channel CfgResponse
 
 
-setupConfigDef :: Process (ProcessId, SendPort CfgRequest)
+setupConfigDef :: Process (SendPort CfgRequest, SendPort CtlMsg)
 setupConfigDef =
     -- TODO: use getArgs to retrieve path from commandline arguments
     -- TODO: use findFile to check for candidates
@@ -59,23 +58,37 @@ setupConfigDef =
       Just path -> setupConfig path
       _ -> setupConfig "../data/config-fco.yaml"
 
-setupConfig :: FilePath -> Process (ProcessId, SendPort CfgRequest)
+setupConfig :: FilePath -> Process (SendPort CfgRequest, SendPort CtlMsg)
 setupConfig path = do
     configData <- liftIO $ loadConfig path
     (cfgReqSend, cfgReqRecv) <- newChan :: Process CfgReqChan
-    pid <- spawnLocal $ cfgListen (cfgReqRecv, configData)
-    return (pid, cfgReqSend)
+    (cfgCtlSend, cfgCtlRecv) <- newChan :: Process CtlChan
+    pid <- spawnLocal $ cfgListen cfgReqRecv cfgCtlRecv configData
+    return (cfgReqSend, cfgCtlSend)
 
-cfgListen :: (ReceivePort CfgRequest, ConfigStore) -> Process ()
-cfgListen =
-    whileDataM $ \(cfgReqRecv, cfgData) ->
-      receiveChan cfgReqRecv >>= \case
-          CfgQuery port key -> do
-              sendChan port $ CfgResponse $ getDataFor key cfgData
-              return $ Just (cfgReqRecv, cfgData)
-          CfgUpdate dskey key value -> 
-              return $ Just (cfgReqRecv, updateData dskey key value cfgData)
+cfgListen :: ReceivePort CfgRequest -> 
+             ReceivePort CtlMsg -> 
+             ConfigStore -> 
+             Process ()
+cfgListen reqRecv ctlRecv = 
+    whileDataM $ \cfgData ->
+      receiveWait [
+          matchChan ctlRecv handleControl,
+          matchChan reqRecv $ handleRequest cfgData
+      ]
 
+handleControl :: CtlMsg -> Process (Maybe ConfigStore)
+handleControl DoQuit = return Nothing
+
+handleRequest :: ConfigStore -> CfgRequest -> Process (Maybe ConfigStore)
+handleRequest cfgData (CfgQuery port key) = do
+    sendChan port $ CfgResponse $ getDataFor key cfgData
+    return $ Just cfgData
+handleRequest cfgData (CfgUpdate dskey key value) = 
+    return $ Just $ updateData dskey key value cfgData
+
+
+-- storage handling
 
 getDataFor :: DSKey -> ConfigStore -> DataSet
 getDataFor dskey cfgData = 
