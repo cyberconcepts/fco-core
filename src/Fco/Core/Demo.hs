@@ -15,7 +15,7 @@ import Control.Distributed.Process (
 import Control.Monad.Extra (whileM)
 
 import Fco.Core.Config (setupConfigDef)
-import Fco.Core.Console (handleConMsg, setupConsole)
+import Fco.Core.Console (setupConsole)
 import Fco.Core.Messaging (
     CtlChan, CtlMsg (DoQuit, InfoMsg), 
     NotifChan, Notification (RequestQuit),
@@ -29,6 +29,10 @@ handleNotif :: Notification -> Process Bool
 handleNotif RequestQuit = return False
 handleNotif _ = return True
 
+handleConMsg :: SendPort Text -> Text -> Process Bool
+handleConMsg port txt = 
+    sendChan port txt >> return True
+
 
 -- application
 
@@ -37,12 +41,12 @@ run =
   runMainProcess $ do
     (notifSend, notifRecv) <- newChan :: Process NotifChan
     (cfgReqSend, cfgCtlSend) <- setupConfigDef
-    (conW, conWSend, conRRecv) <- setupConsole notifSend --cfgReqSend
+    (conWSend, conRRecv, conCtlSend) <- setupConsole notifSend --cfgReqSend
     whileM $
       receiveWait [
           matchChan notifRecv $ handleNotif,
           matchChan conRRecv $ handleConMsg conWSend
       ]
-    sendChan conWSend "stopping application"
     sendChan cfgCtlSend DoQuit
+    sendChan conCtlSend DoQuit
     liftIO $ threadDelay 200000

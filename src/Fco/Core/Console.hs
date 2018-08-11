@@ -7,7 +7,7 @@
 
 module Fco.Core.Console (
   ConWChan, ConRChan,
-  handleConMsg, setupConsole) where
+  setupConsole) where
 
 import BasicPrelude
 import qualified Data.Text as T
@@ -19,30 +19,35 @@ import GHC.Generics (Generic)
 
 import Control.Distributed.Process (
     Process, ProcessId, ReceivePort, SendPort,
-    newChan, receiveChan, sendChan, spawnLocal)
+    matchChan, newChan, receiveChan, receiveWait, sendChan, spawnLocal)
 
 import Fco.Core.Messaging (
-    Channel, CtlMsg (DoQuit), Notification (AckQuit, RequestQuit))
+    Channel, CtlChan, CtlMsg (DoQuit), Notification (AckQuit, RequestQuit))
 
 
 type ConWChan = Channel Text
 type ConRChan = Channel Text
 
 
-setupConsole :: SendPort Notification
-      -> Process (ProcessId, SendPort Text, ReceivePort Text)
+setupConsole :: SendPort Notification -> 
+                Process (SendPort Text, ReceivePort Text, SendPort CtlMsg)
 setupConsole notifSend = do
     (conWSend, conWRecv) <- newChan :: Process ConWChan
     (conRSend, conRRecv) <- newChan :: Process ConRChan
-    conW <- spawnLocal $ conWriter notifSend conWRecv conRSend
-    return (conW, conWSend, conRRecv)
+    (ctlSend, ctlRecv) <- newChan :: Process CtlChan
+    conW <- spawnLocal $ conWriter notifSend ctlRecv conWRecv conRSend
+    return (conWSend, conRRecv, ctlSend)
 
-conWriter :: SendPort Notification -> 
+conWriter :: SendPort Notification -> ReceivePort CtlMsg ->
              ReceivePort Text -> SendPort Text -> 
              Process ()
-conWriter notifSend conWRecv conRSend = do
+conWriter notifSend ctlRecv conWRecv conRSend = do
     conR <- spawnLocal $ conReader notifSend conRSend
-    forever $ receiveChan conWRecv >>= putStrLn
+    whileM $
+      receiveWait [
+          matchChan ctlRecv handleControl,
+          matchChan conWRecv handleText
+      ]
 
 conReader :: SendPort Notification -> SendPort Text -> Process ()
 conReader notifSend conRSend =
@@ -53,6 +58,8 @@ conReader notifSend conRSend =
         _ -> sendChan conRSend line >> return True
 
 
-handleConMsg :: SendPort Text -> Text -> Process Bool
-handleConMsg port txt = 
-    sendChan port txt >> return True
+handleControl :: CtlMsg -> Process Bool
+handleControl DoQuit = putStrLn "stopping application" >> return False
+
+handleText :: Text -> Process Bool
+handleText txt = putStrLn txt >> return True

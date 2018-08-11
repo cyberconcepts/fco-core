@@ -22,9 +22,8 @@ import System.Directory (doesFileExist, findFile)
 import System.Environment (lookupEnv)
 
 import Control.Distributed.Process (
-    Process, ProcessId, ReceivePort, SendPort,
-    expect, getSelfPid, match, matchChan, newChan, receiveChan, receiveWait, 
-    send, sendChan, spawnLocal)
+    Process, ReceivePort, SendPort,
+    matchChan, newChan, receiveWait, sendChan, spawnLocal)
 
 import Fco.Core.Messaging (Channel, CtlChan, CtlMsg (DoQuit))
 import Fco.Core.Util (whileDataM)
@@ -61,16 +60,16 @@ setupConfigDef =
 setupConfig :: FilePath -> Process (SendPort CfgRequest, SendPort CtlMsg)
 setupConfig path = do
     configData <- liftIO $ loadConfig path
-    (cfgReqSend, cfgReqRecv) <- newChan :: Process CfgReqChan
-    (cfgCtlSend, cfgCtlRecv) <- newChan :: Process CtlChan
-    pid <- spawnLocal $ cfgListen cfgReqRecv cfgCtlRecv configData
-    return (cfgReqSend, cfgCtlSend)
+    (reqSend, reqRecv) <- newChan :: Process CfgReqChan
+    (ctlSend, ctlRecv) <- newChan :: Process CtlChan
+    pid <- spawnLocal $ listen reqRecv ctlRecv configData
+    return (reqSend, ctlSend)
 
-cfgListen :: ReceivePort CfgRequest -> 
+listen :: ReceivePort CfgRequest -> 
              ReceivePort CtlMsg -> 
              ConfigStore -> 
              Process ()
-cfgListen reqRecv ctlRecv = 
+listen reqRecv ctlRecv = 
     whileDataM $ \cfgData ->
       receiveWait [
           matchChan ctlRecv handleControl,
