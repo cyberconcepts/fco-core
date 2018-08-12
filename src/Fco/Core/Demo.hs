@@ -11,7 +11,8 @@ import BasicPrelude
 import Control.Concurrent (threadDelay)
 import Control.Distributed.Process (
     Process, ProcessId, ReceivePort, SendPort,
-    getSelfPid, matchChan, newChan, receiveWait, sendChan)
+    getSelfPid, matchChan, newChan, 
+    receiveChanTimeout, receiveWait, sendChan)
 import Control.Monad.Extra (whileM)
 
 import Fco.Core.Config (setupConfigDef)
@@ -40,7 +41,7 @@ run :: IO ()
 run = 
   runMainProcess $ do
     (notifSend, notifRecv) <- newChan :: Process NotifChan
-    (cfgReqSend, cfgCtlSend) <- setupConfigDef
+    (cfgReqSend, cfgCtlSend) <- setupConfigDef notifSend
     (conWSend, conRRecv, conCtlSend) <- setupConsole notifSend --cfgReqSend
     whileM $
       receiveWait [
@@ -49,4 +50,6 @@ run =
       ]
     sendChan cfgCtlSend DoQuit
     sendChan conCtlSend DoQuit
-    liftIO $ threadDelay 200000
+    receiveChanTimeout 1000000 notifRecv >>= print
+    receiveChanTimeout 1000000 notifRecv >>= print
+    --liftIO $ threadDelay 200000

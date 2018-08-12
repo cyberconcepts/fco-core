@@ -25,7 +25,9 @@ import Control.Distributed.Process (
     Process, ReceivePort, SendPort,
     matchChan, newChan, receiveWait, sendChan, spawnLocal)
 
-import Fco.Core.Messaging (Channel, CtlChan, CtlMsg (DoQuit))
+import Fco.Core.Messaging (
+    Channel, CtlChan, CtlMsg (DoQuit), 
+    Notification (AckQuit))
 import Fco.Core.Util (whileDataM)
 
 
@@ -49,35 +51,39 @@ type CfgReqChan = Channel CfgRequest
 type CfgRespChan = Channel CfgResponse
 
 
-setupConfigDef :: Process (SendPort CfgRequest, SendPort CtlMsg)
-setupConfigDef =
+setupConfigDef :: SendPort Notification ->
+                  Process (SendPort CfgRequest, SendPort CtlMsg)
+setupConfigDef notifSend =
     -- TODO: use getArgs to retrieve path from commandline arguments
     -- TODO: use findFile to check for candidates
     liftIO (lookupEnv "config-fco") >>= \case
-      Just path -> setupConfig path
-      _ -> setupConfig "../data/config-fco.yaml"
+      Just path -> setupConfig path notifSend
+      _ -> setupConfig "../data/config-fco.yaml" notifSend
 
-setupConfig :: FilePath -> Process (SendPort CfgRequest, SendPort CtlMsg)
-setupConfig path = do
+setupConfig :: FilePath -> 
+               SendPort Notification ->
+               Process (SendPort CfgRequest, SendPort CtlMsg)
+setupConfig path notifSend = do
     configData <- liftIO $ loadConfig path
     (reqSend, reqRecv) <- newChan :: Process CfgReqChan
     (ctlSend, ctlRecv) <- newChan :: Process CtlChan
-    pid <- spawnLocal $ listen reqRecv ctlRecv configData
+    pid <- spawnLocal $ listen ctlRecv notifSend reqRecv configData
     return (reqSend, ctlSend)
 
-listen :: ReceivePort CfgRequest -> 
-             ReceivePort CtlMsg -> 
-             ConfigStore -> 
-             Process ()
-listen reqRecv ctlRecv = 
+listen :: ReceivePort CtlMsg -> SendPort Notification -> 
+          ReceivePort CfgRequest -> ConfigStore -> 
+          Process ()
+listen ctlRecv notifSend reqRecv = 
     whileDataM $ \cfgData ->
       receiveWait [
-          matchChan ctlRecv handleControl,
+          matchChan ctlRecv $ handleControl notifSend,
           matchChan reqRecv $ handleRequest cfgData
       ]
 
-handleControl :: CtlMsg -> Process (Maybe ConfigStore)
-handleControl DoQuit = return Nothing
+handleControl :: SendPort Notification -> CtlMsg ->Process (Maybe ConfigStore)
+handleControl notifSend DoQuit = do
+    sendChan notifSend AckQuit
+    return Nothing
 
 handleRequest :: ConfigStore -> CfgRequest -> Process (Maybe ConfigStore)
 handleRequest cfgData (CfgQuery port key) = do

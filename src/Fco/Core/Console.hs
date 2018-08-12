@@ -14,7 +14,6 @@ import qualified Data.Text as T
 
 import Control.Monad.Extra (whileM)
 import Data.Binary (Binary)
-import Control.Monad (forever)
 import GHC.Generics (Generic)
 
 import Control.Distributed.Process (
@@ -35,17 +34,17 @@ setupConsole notifSend = do
     (conWSend, conWRecv) <- newChan :: Process ConWChan
     (conRSend, conRRecv) <- newChan :: Process ConRChan
     (ctlSend, ctlRecv) <- newChan :: Process CtlChan
-    conW <- spawnLocal $ conWriter notifSend ctlRecv conWRecv conRSend
+    conW <- spawnLocal $ conWriter ctlRecv notifSend conWRecv conRSend
     return (conWSend, conRRecv, ctlSend)
 
-conWriter :: SendPort Notification -> ReceivePort CtlMsg ->
+conWriter :: ReceivePort CtlMsg -> SendPort Notification -> 
              ReceivePort Text -> SendPort Text -> 
              Process ()
-conWriter notifSend ctlRecv conWRecv conRSend = do
+conWriter ctlRecv notifSend conWRecv conRSend = do
     conR <- spawnLocal $ conReader notifSend conRSend
     whileM $
       receiveWait [
-          matchChan ctlRecv handleControl,
+          matchChan ctlRecv $ handleControl notifSend,
           matchChan conWRecv handleText
       ]
 
@@ -58,8 +57,11 @@ conReader notifSend conRSend =
         _ -> sendChan conRSend line >> return True
 
 
-handleControl :: CtlMsg -> Process Bool
-handleControl DoQuit = putStrLn "stopping application" >> return False
+handleControl :: SendPort Notification -> CtlMsg -> Process Bool
+handleControl notifSend DoQuit = do
+    putStrLn "stopping application"
+    sendChan notifSend AckQuit
+    return False
 
 handleText :: Text -> Process Bool
 handleText txt = putStrLn txt >> return True
