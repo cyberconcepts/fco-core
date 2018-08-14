@@ -70,7 +70,7 @@ setupConfig path notifSend = do
     pid <- spawnLocal $ listen ctlRecv notifSend reqRecv configData
     return (reqSend, ctlSend)
 
-listen :: ReceivePort CtlMsg -> SendPort Notification -> 
+listen :: ReceivePort CtlMsg -> SendPort Notification -> -- SendPort CtlMsg -->
           ReceivePort CfgRequest -> ConfigStore -> 
           Process ()
 listen ctlRecv notifSend reqRecv = 
@@ -80,7 +80,7 @@ listen ctlRecv notifSend reqRecv =
           matchChan reqRecv $ handleRequest cfgData
       ]
 
-handleControl :: SendPort Notification -> CtlMsg ->Process (Maybe ConfigStore)
+handleControl :: SendPort Notification -> CtlMsg -> Process (Maybe ConfigStore)
 handleControl notifSend DoQuit = do
     sendChan notifSend AckQuit
     return Nothing

@@ -37,7 +37,7 @@ setupConsole notifSend = do
     conW <- spawnLocal $ conWriter ctlRecv notifSend conWRecv conRSend
     return (conWSend, conRRecv, ctlSend)
 
-conWriter :: ReceivePort CtlMsg -> SendPort Notification -> 
+conWriter :: ReceivePort CtlMsg -> SendPort Notification -> -- SendPort CtlMsg ->
              ReceivePort Text -> SendPort Text -> 
              Process ()
 conWriter ctlRecv notifSend conWRecv conRSend = do
