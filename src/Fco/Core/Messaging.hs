@@ -6,7 +6,7 @@
 --
 
 module Fco.Core.Messaging (
-    Channel, CtlChan, CtlMsg (..), 
+    Channel, CtlChan, CtlMsg (..), Message,
     NotifChan, Notification (..), ParentId, Service (..), ServiceId,
     defaultService, runMainProcess, setupService) where
 
@@ -15,12 +15,14 @@ import BasicPrelude
 import Data.Binary (Binary)
 import Control.Distributed.Process (
     Process, ReceivePort, SendPort,
-    newChan, spawnLocal)
+    matchChan, newChan, receiveWait, sendChan, spawnLocal)
 import Control.Distributed.Process.Backend.SimpleLocalnet (
     initializeBackend, newLocalNode)
 import Control.Distributed.Process.Node (
     initRemoteTable, runProcess)
 import GHC.Generics (Generic)
+
+import Fco.Core.Util (whileDataM)
 
 
 -- main process
@@ -42,10 +44,12 @@ class (Binary msg, Typeable msg) => Message msg
 data Notification = RequestQuit | AckQuit | InfoNotif Text | ErrorNotif Text
   deriving (Show, Generic, Typeable)
 instance Binary Notification
+instance Message Notification
 
 data CtlMsg = DoQuit | InfoMsg Text
   deriving (Show, Generic, Typeable)
 instance Binary CtlMsg
+instance Message CtlMsg
 
 type ServiceId = SendPort CtlMsg
 type ParentId = SendPort Notification
@@ -54,46 +58,57 @@ type Channel a = (SendPort a, ReceivePort a)
 type NotifChan = Channel Notification
 type CtlChan = Channel CtlMsg
 
+type Listener state req = ServiceId -> ParentId -> 
+                  ReceivePort CtlMsg -> ReceivePort req -> 
+                  CtlHandler state -> MsgHandler state req -> state ->
+                  Process ()
+type MsgHandler state req = ServiceId -> state -> req -> 
+                  Process (Maybe state)
+type CtlHandler state = ServiceId -> ParentId -> state -> CtlMsg -> 
+                  Process (Maybe state)
+
 
 -- service definitions
 
 --data (Message req, Message resp) => Service req resp state = Service {
 data Service req resp state = Service {
-    parent :: ParentId,
-    serviceListener :: ServiceId -> ParentId -> 
-                ReceivePort CtlMsg -> ReceivePort req -> state ->
-                Process (),
+    serviceListener :: Listener state req,
     serviceResponse :: Maybe (SendPort resp),
     serviceState :: state,
-    messageHandler :: ServiceId -> state -> req -> Process (Maybe state),
-    controlHandler :: ServiceId -> ParentId -> state -> CtlMsg -> 
-                Process (Maybe state)
+    messageHandler :: MsgHandler state req,
+    controlHandler :: CtlHandler state
 }
 
-defaultService = Service undefined defaultListener Nothing () 
-    defaultMessageHandler defaultControlHandler
+defaultService = Service defaultListener Nothing () 
+        defaultMessageHandler defaultControlHandler
 
 
 setupService :: (Message req, Message resp) => Service req resp state -> 
-                Process (SendPort req, ServiceId)
-setupService serviceDef = do
+                ParentId -> Process (SendPort req, ServiceId)
+setupService svc parent = do
     (reqSend, reqRecv) <- newChan :: Message req => Process (Channel req)
     (ctlSend, ctlRecv) <- newChan :: Process CtlChan
     spawnLocal $ 
-        (serviceListener serviceDef) 
-            ctlSend (parent serviceDef) ctlRecv reqRecv $ serviceState serviceDef
+        (serviceListener svc) 
+            ctlSend parent ctlRecv reqRecv 
+            (controlHandler svc) (messageHandler svc)
+            (serviceState svc)
     return (reqSend, ctlSend)
 
 
-defaultListener :: ServiceId -> ParentId -> 
-                   ReceivePort CtlMsg -> ReceivePort req -> state ->
-                   Process ()
-defaultListener = undefined
+defaultListener :: Listener state req
+defaultListener self parent ctlRecv reqRecv handleControl handleRequest = 
+    whileDataM $ \state ->
+      receiveWait [
+          matchChan ctlRecv $ handleControl self parent state,
+          matchChan reqRecv $ handleRequest self state
+      ]
 
-defaultMessageHandler :: ServiceId -> state -> msg -> 
-                         Process (Maybe state)
-defaultMessageHandler srvId state msg = return $ Just state
+defaultMessageHandler :: MsgHandler state req
+defaultMessageHandler self state msg = return $ Just state
 
-defaultControlHandler :: ServiceId -> ParentId -> state -> CtlMsg -> 
-                         Process (Maybe state)
-defaultControlHandler srvId parentId state msg = return $ Just state
+defaultControlHandler :: CtlHandler state
+defaultControlHandler self parent state DoQuit = do
+    sendChan parent AckQuit
+    return Nothing
+defaultControlHandler self parent state msg = return $ Just state
