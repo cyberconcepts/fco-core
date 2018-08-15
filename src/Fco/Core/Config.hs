@@ -24,8 +24,7 @@ import System.Environment (lookupEnv)
 import Control.Distributed.Process (Process, SendPort, sendChan)
 
 import Fco.Core.Messaging (
-    CtlMsg (DoQuit), Listener, Message, MsgHandler, 
-    Notification, Service (..),
+    Listener, Message, MsgHandler, ParentId, Service (..), ServiceId,
     defaultService, setupService)
 
 
@@ -48,8 +47,8 @@ instance Binary CfgResponse
 instance Message CfgResponse
 
 
-setupConfigDef :: SendPort Notification ->
-                  Process (SendPort CfgRequest, SendPort CtlMsg)
+setupConfigDef :: ParentId ->
+                  Process (SendPort CfgRequest, ServiceId)
 setupConfigDef notifSend =
     -- TODO: use getArgs to retrieve path from commandline arguments
     -- TODO: use findFile to check for candidates
@@ -57,12 +56,11 @@ setupConfigDef notifSend =
       Just path -> setupConfig path notifSend
       _ -> setupConfig "../data/config-fco.yaml" notifSend
 
-setupConfig :: FilePath -> 
-               SendPort Notification ->
-               Process (SendPort CfgRequest, SendPort CtlMsg)
+setupConfig :: FilePath -> ParentId ->
+               Process (SendPort CfgRequest, ServiceId)
 setupConfig path parent = do
     configData <- liftIO $ loadConfig path
-    let svc = (defaultService :: Service CfgRequest CfgResponse ConfigStore) 
+    let svc = defaultService
                 { serviceState = configData,
                   messageHandler = handleRequest }
     setupService svc parent

@@ -21,47 +21,41 @@ import Control.Distributed.Process (
     matchChan, newChan, receiveChan, receiveWait, sendChan, spawnLocal)
 
 import Fco.Core.Messaging (
-    Channel, CtlChan, CtlMsg (DoQuit), Notification (AckQuit, RequestQuit))
+    Channel, CtlChan, CtlMsg (DoQuit), 
+    Listener, Message, MsgHandler, Notification (AckQuit, RequestQuit),
+    ParentId, Service (..), ServiceId,
+    defaultService, setupService)
 
 
 type ConWChan = Channel Text
 type ConRChan = Channel Text
 
+instance Message Text
 
-setupConsole :: SendPort Notification -> 
-                Process (SendPort Text, ReceivePort Text, SendPort CtlMsg)
-setupConsole notifSend = do
-    (conWSend, conWRecv) <- newChan :: Process ConWChan
+
+setupConsole :: ParentId -> 
+                Process (SendPort Text, ReceivePort Text, ServiceId)
+setupConsole parent = do
+    let svc = defaultService { 
+                serviceState = (), 
+                messageHandler = handleText }
+    (conWSend, ctlSend) <- setupService svc parent
     (conRSend, conRRecv) <- newChan :: Process ConRChan
-    (ctlSend, ctlRecv) <- newChan :: Process CtlChan
-    conW <- spawnLocal $ conWriter ctlRecv notifSend conWRecv conRSend
+    conR <- spawnLocal $ conReader parent conRSend
     return (conWSend, conRRecv, ctlSend)
 
-conWriter :: ReceivePort CtlMsg -> SendPort Notification -> -- SendPort CtlMsg ->
-             ReceivePort Text -> SendPort Text -> 
-             Process ()
-conWriter ctlRecv notifSend conWRecv conRSend = do
-    conR <- spawnLocal $ conReader notifSend conRSend
-    whileM $
-      receiveWait [
-          matchChan ctlRecv $ handleControl notifSend,
-          matchChan conWRecv handleText
-      ]
+handleText :: MsgHandler () Text
+handleText self _ txt = do 
+    putStrLn txt
+    return $ Just ()
 
-conReader :: SendPort Notification -> SendPort Text -> Process ()
-conReader notifSend conRSend =
+
+conReader :: ParentId -> SendPort Text -> Process ()
+conReader parent client =
     whileM $ do
       line <- getLine
       case line of
-        "bye" -> sendChan notifSend RequestQuit >> return False
-        _ -> sendChan conRSend line >> return True
+        "bye" -> sendChan parent RequestQuit >> return False
+        _ -> sendChan client line >> return True
 
 
-handleControl :: SendPort Notification -> CtlMsg -> Process Bool
-handleControl notifSend DoQuit = do
-    putStrLn "stopping application"
-    sendChan notifSend AckQuit
-    return False
-
-handleText :: Text -> Process Bool
-handleText txt = putStrLn txt >> return True

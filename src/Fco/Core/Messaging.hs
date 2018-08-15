@@ -71,20 +71,19 @@ type CtlHandler state = ServiceId -> ParentId -> state -> CtlMsg ->
 
 -- service definitions
 
-data (Message req, Message resp) => Service req resp state = Service {
+data Message req => Service req state = Service {
     serviceListener :: Listener state req,
-    serviceResponse :: Maybe (SendPort resp),
     serviceState :: state,
     messageHandler :: MsgHandler state req,
     controlHandler :: CtlHandler state
 }
 
-defaultService :: (Message req, Message resp) => Service req resp state
-defaultService = Service defaultListener Nothing undefined
+defaultService :: Message req => Service req state
+defaultService = Service defaultListener undefined
         defaultMessageHandler defaultControlHandler
 
 
-setupService :: (Message req, Message resp) => Service req resp state -> 
+setupService :: Message req => Service req state -> 
                 ParentId -> Process (SendPort req, ServiceId)
 setupService svc parent = do
     (reqSend, reqRecv) <- newChan :: Message req => Process (Channel req)
