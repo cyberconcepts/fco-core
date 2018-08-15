@@ -21,14 +21,12 @@ import GHC.Generics (Generic)
 import System.Directory (doesFileExist, findFile)
 import System.Environment (lookupEnv)
 
-import Control.Distributed.Process (
-    Process, ReceivePort, SendPort,
-    matchChan, newChan, receiveWait, sendChan, spawnLocal)
+import Control.Distributed.Process (Process, SendPort, sendChan)
 
 import Fco.Core.Messaging (
-    Channel, CtlChan, CtlMsg (DoQuit), 
-    Notification (AckQuit))
-import Fco.Core.Util (whileDataM)
+    CtlMsg (DoQuit), Listener, Message, MsgHandler, 
+    Notification, Service (..),
+    defaultService, setupService)
 
 
 type CKey = Text
@@ -42,13 +40,12 @@ data CfgRequest = CfgQuery (SendPort CfgResponse) DSKey
                 | CfgUpdate DSKey CKey CValue
   deriving (Show, Generic, Typeable)
 instance Binary CfgRequest
+instance Message CfgRequest
 
 newtype CfgResponse = CfgResponse DataSet
   deriving (Show, Generic, Typeable)
 instance Binary CfgResponse
-
-type CfgReqChan = Channel CfgRequest
-type CfgRespChan = Channel CfgResponse
+instance Message CfgResponse
 
 
 setupConfigDef :: SendPort Notification ->
@@ -63,33 +60,19 @@ setupConfigDef notifSend =
 setupConfig :: FilePath -> 
                SendPort Notification ->
                Process (SendPort CfgRequest, SendPort CtlMsg)
-setupConfig path notifSend = do
+setupConfig path parent = do
     configData <- liftIO $ loadConfig path
-    (reqSend, reqRecv) <- newChan :: Process CfgReqChan
-    (ctlSend, ctlRecv) <- newChan :: Process CtlChan
-    pid <- spawnLocal $ listen ctlRecv notifSend reqRecv configData
-    return (reqSend, ctlSend)
+    let svc = (defaultService :: Service CfgRequest CfgResponse ConfigStore) 
+                { serviceState = configData,
+                  messageHandler = handleRequest }
+    setupService svc parent
 
-listen :: ReceivePort CtlMsg -> SendPort Notification -> -- SendPort CtlMsg -->
-          ReceivePort CfgRequest -> ConfigStore -> 
-          Process ()
-listen ctlRecv notifSend reqRecv = 
-    whileDataM $ \cfgData ->
-      receiveWait [
-          matchChan ctlRecv $ handleControl notifSend,
-          matchChan reqRecv $ handleRequest cfgData
-      ]
 
-handleControl :: SendPort Notification -> CtlMsg -> Process (Maybe ConfigStore)
-handleControl notifSend DoQuit = do
-    sendChan notifSend AckQuit
-    return Nothing
-
-handleRequest :: ConfigStore -> CfgRequest -> Process (Maybe ConfigStore)
-handleRequest cfgData (CfgQuery port key) = do
-    sendChan port $ CfgResponse $ getDataFor key cfgData
+handleRequest :: MsgHandler ConfigStore CfgRequest
+handleRequest self cfgData (CfgQuery client key) = do
+    sendChan client $ CfgResponse $ getDataFor key cfgData
     return $ Just cfgData
-handleRequest cfgData (CfgUpdate dskey key value) = 
+handleRequest self cfgData (CfgUpdate dskey key value) = 
     return $ Just $ updateData dskey key value cfgData
 
 

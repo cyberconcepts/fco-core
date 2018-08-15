@@ -6,7 +6,8 @@
 --
 
 module Fco.Core.Messaging (
-    Channel, CtlChan, CtlMsg (..), Message,
+    Channel, CtlChan, CtlMsg (..), CtlHandler, 
+    Listener, Message, MsgHandler,
     NotifChan, Notification (..), ParentId, Service (..), ServiceId,
     defaultService, runMainProcess, setupService) where
 
@@ -70,8 +71,7 @@ type CtlHandler state = ServiceId -> ParentId -> state -> CtlMsg ->
 
 -- service definitions
 
---data (Message req, Message resp) => Service req resp state = Service {
-data Service req resp state = Service {
+data (Message req, Message resp) => Service req resp state = Service {
     serviceListener :: Listener state req,
     serviceResponse :: Maybe (SendPort resp),
     serviceState :: state,
@@ -79,7 +79,8 @@ data Service req resp state = Service {
     controlHandler :: CtlHandler state
 }
 
-defaultService = Service defaultListener Nothing () 
+defaultService :: (Message req, Message resp) => Service req resp state
+defaultService = Service defaultListener Nothing undefined
         defaultMessageHandler defaultControlHandler
 
 
