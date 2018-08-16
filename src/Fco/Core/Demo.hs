@@ -27,7 +27,7 @@ import Fco.Core.Types (GraphResp)
 -- message handlers
 
 handleNotif :: Notification -> Process Bool
-handleNotif RequestQuit = return False
+handleNotif (RequestQuit service) = return False
 handleNotif _ = return True
 
 handleConMsg :: SendPort Text -> Text -> Process Bool
@@ -41,15 +41,15 @@ run :: IO ()
 run = 
   runMainProcess $ do
     (notifSend, notifRecv) <- newChan :: Process NotifChan
-    (cfgReqSend, cfgCtlSend) <- setupConfigDef notifSend
-    (conWSend, conRRecv, conCtlSend) <- setupConsole notifSend --cfgReqSend
+    (cfgReqSend, ctlId) <- setupConfigDef notifSend
+    (conWSend, conRRecv, conWId, conRId) <- setupConsole notifSend --cfgReqSend
     whileM $
       receiveWait [
           matchChan notifRecv $ handleNotif,
           matchChan conRRecv $ handleConMsg conWSend
       ]
-    sendChan cfgCtlSend DoQuit
-    sendChan conCtlSend DoQuit
+    sendChan ctlId DoQuit
+    sendChan conWId DoQuit
     receiveChanTimeout 1000000 notifRecv >>= print
     receiveChanTimeout 1000000 notifRecv >>= print
     --liftIO $ threadDelay 200000

@@ -24,7 +24,7 @@ import System.Environment (lookupEnv)
 import Control.Distributed.Process (Process, SendPort, sendChan)
 
 import Fco.Core.Messaging (
-    Listener, Message, MsgHandler, ParentId, Service (..), ServiceId,
+    Message, MsgHandler, ParentId, Service (..), ServiceId,
     defaultService, setupService)
 
 

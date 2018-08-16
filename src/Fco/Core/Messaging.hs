@@ -42,7 +42,10 @@ runMainProcess proc = do
 
 class (Binary msg, Typeable msg) => Message msg
 
-data Notification = RequestQuit | AckQuit | InfoNotif Text | ErrorNotif Text
+data Notification = RequestQuit ServiceId 
+                  | AckQuit ServiceId
+                  | InfoNotif ServiceId Text 
+                  | ErrorNotif ServiceId Text
   deriving (Show, Generic, Typeable)
 instance Binary Notification
 instance Message Notification
@@ -109,6 +112,6 @@ defaultMessageHandler self state msg = return $ Just state
 
 defaultControlHandler :: CtlHandler state
 defaultControlHandler self parent state DoQuit = do
-    sendChan parent AckQuit
+    sendChan parent $ AckQuit self
     return Nothing
 defaultControlHandler self parent state msg = return $ Just state

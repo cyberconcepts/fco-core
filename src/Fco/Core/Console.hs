@@ -5,9 +5,7 @@
 --
 --
 
-module Fco.Core.Console (
-  ConWChan, ConRChan,
-  setupConsole) where
+module Fco.Core.Console (setupConsole) where
 
 import BasicPrelude
 import qualified Data.Text as T
@@ -17,32 +15,29 @@ import Data.Binary (Binary)
 import GHC.Generics (Generic)
 
 import Control.Distributed.Process (
-    Process, ProcessId, ReceivePort, SendPort,
-    matchChan, newChan, receiveChan, receiveWait, sendChan, spawnLocal)
+    Process, ReceivePort, SendPort,
+    newChan, sendChan, spawnLocal)
 
 import Fco.Core.Messaging (
-    Channel, CtlChan, CtlMsg (DoQuit), 
-    Listener, Message, MsgHandler, Notification (AckQuit, RequestQuit),
+    Channel, CtlChan, Message, MsgHandler, Notification (RequestQuit),
     ParentId, Service (..), ServiceId,
     defaultService, setupService)
 
 
-type ConWChan = Channel Text
 type ConRChan = Channel Text
 
 instance Message Text
 
 
 setupConsole :: ParentId -> 
-                Process (SendPort Text, ReceivePort Text, ServiceId)
+                Process (SendPort Text, ReceivePort Text, ServiceId, ServiceId)
 setupConsole parent = do
     let svc = defaultService { 
                 serviceState = (), 
                 messageHandler = handleText }
-    (conWSend, ctlSend) <- setupService svc parent
-    (conRSend, conRRecv) <- newChan :: Process ConRChan
-    conR <- spawnLocal $ conReader parent conRSend
-    return (conWSend, conRRecv, ctlSend)
+    (conWSend, ctlWSend) <- setupService svc parent
+    (conRRecv, ctlRSend) <- setupConReader parent
+    return (conWSend, conRRecv, ctlWSend, ctlRSend)
 
 handleText :: MsgHandler () Text
 handleText self _ txt = do 
@@ -50,12 +45,19 @@ handleText self _ txt = do
     return $ Just ()
 
 
-conReader :: ParentId -> SendPort Text -> Process ()
-conReader parent client =
+setupConReader :: ParentId -> Process (ReceivePort Text, ServiceId)
+setupConReader parent = do
+    (conRSend, conRRecv) <- newChan :: Process ConRChan
+    (ctlSend, ctlRecv) <- newChan :: Process CtlChan
+    spawnLocal $ conReader ctlSend parent conRSend
+    return (conRRecv, ctlSend)
+
+conReader :: ServiceId -> ParentId -> SendPort Text -> Process ()
+conReader self parent client =
     whileM $ do
       line <- getLine
       case line of
-        "bye" -> sendChan parent RequestQuit >> return False
+        "bye" -> sendChan parent (RequestQuit self) >> return False
         _ -> sendChan client line >> return True
 
 
