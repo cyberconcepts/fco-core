@@ -41,14 +41,14 @@ run :: IO ()
 run = 
   runMainProcess $ do
     (notifSend, notifRecv) <- newChan :: Process NotifChan
-    (cfgReqSend, ctlId) <- setupConfigDef notifSend
+    (cfgReqSend, cfgId) <- setupConfigDef notifSend
     (conWSend, conRRecv, conWId, conRId) <- setupConsole notifSend --cfgReqSend
     whileM $
       receiveWait [
           matchChan notifRecv $ handleNotif,
           matchChan conRRecv $ handleConMsg conWSend
       ]
-    sendChan ctlId DoQuit
+    sendChan cfgId DoQuit
     sendChan conWId DoQuit
     receiveChanTimeout 1000000 notifRecv >>= print
     receiveChanTimeout 1000000 notifRecv >>= print

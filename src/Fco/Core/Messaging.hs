@@ -111,7 +111,6 @@ defaultMessageHandler :: MsgHandler state req
 defaultMessageHandler self state msg = return $ Just state
 
 defaultControlHandler :: CtlHandler state
-defaultControlHandler self parent state DoQuit = do
-    sendChan parent $ AckQuit self
-    return Nothing
+defaultControlHandler self parent state DoQuit =
+    sendChan parent (AckQuit self) >> return Nothing
 defaultControlHandler self parent state msg = return $ Just state
