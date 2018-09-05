@@ -17,8 +17,10 @@ library
   hs-source-dirs:     src
   exposed-modules:    Fco.Core.Config
                       Fco.Core.Console
-                      Fco.Core.Messaging
                       Fco.Core.Demo
+                      Fco.Core.Messaging
+                      Fco.Core.Parse
+                      Fco.Core.Show
                       Fco.Core.Struct
                       Fco.Core.Types
                       Fco.Core.Util
@@ -49,7 +51,9 @@ executable fco-core-demo
 test-suite fco-core-test
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
-  other-modules:      Fco.Core.StructSpec
+  other-modules:      Fco.Core.ParseSpec
+                      Fco.Core.ShowSpec
+                      Fco.Core.StructSpec
   main-is:            Spec.hs
   build-depends:      base
                     , fco-core

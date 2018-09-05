@@ -18,13 +18,19 @@ import GHC.Generics (Generic)
 type IRI = Text
 type Prefix = Text
 
-data Namespace = Namespace IRI Prefix deriving (Eq, Ord, Show)
+data Namespace = Namespace IRI Prefix 
+  deriving (Eq, Ord, Show, Generic, Typeable)
+instance Binary Namespace
 
 type NodeName = Text
-type Subject = NodeName
-type Predicate = NodeName
+type Subject = Node
+type Predicate = Node
 
-data Object = NodeObj NodeName | TextObj Text 
+data Node = Node Namespace NodeName 
+  deriving (Eq, Ord, Show, Generic, Typeable)
+instance Binary Node
+
+data Object = NodeObj NodeName | IntObj Int64 | TextObj Text 
   deriving (Eq, Ord, Show, Generic, Typeable)
 instance Binary Object
 
@@ -39,7 +45,7 @@ data QuCrit a = IsEqual a | Ignore
   deriving (Eq, Show, Generic, Typeable)
 instance Binary a => Binary (QuCrit a)
 
-data Query = Query (QuCrit NodeName) (QuCrit NodeName) (QuCrit Object)
+data Query = Query (QuCrit Node) (QuCrit Node) (QuCrit Object)
   deriving (Eq, Show, Generic, Typeable)
 instance Binary Query
 

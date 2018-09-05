@@ -24,10 +24,6 @@ testData1 = HM.fromList [("key1", String "value"),
 spec :: Spec
 spec = do
 
-  describe "dummy" $ do
-    it "is just for demonstration" $ do
-      "foo bar" `shouldBe` "foo bar"
-  
   describe "lookupString" $ do
     it "gets a (JSON) String value from a hashmap" $ do
       lookupString "key1" testData1 `shouldBe` "value"
