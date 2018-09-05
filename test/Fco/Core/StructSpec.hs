@@ -4,11 +4,11 @@ module Fco.Core.StructSpec (main, spec) where
 
 import Test.Hspec
 
-import Fco.Core.Struct
-
 import Control.Exception (evaluate)
 import Data.Aeson (object, (.=), Object, Value (Object, String))
 import qualified Data.HashMap.Strict as HM
+
+import Fco.Core.Struct
 
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is

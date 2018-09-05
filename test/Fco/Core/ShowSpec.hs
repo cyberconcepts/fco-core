@@ -6,6 +6,9 @@ import Test.Hspec
 
 import Fco.Core.Show
 import Fco.Core.Types
+import Fco.Core.TestData (
+        fco, rdf, rdfs,
+        type_, class_, label, topic, relevance)
 
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
@@ -17,24 +20,15 @@ main = hspec spec
 spec :: Spec
 spec = do
 
-  let fco = (Namespace "http://functionalconcepts.org/fco-common#" "fco")
-      rdf = (Namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#" "rdf")
-      rdfs = (Namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#" "rdfs")
-      type_ = Node rdf "type"
-      class_ = Node rdf "Class"
-      label = Node rdfs "label"
-      topic = Node fco "topic"
-      relevance = Node fco "relevance"
-
   describe "show functions" $ do
-    it "provide printable representations of a node" $ do
+    it "provide text representations of a node" $ do
       showNode type_ `shouldBe` "rdf:type"
       showNode topic `shouldBe` "fco:topic"
-    it "provide printable representations of the object part of a triple" $ do
+    it "provide text representations of the object part of a triple" $ do
       showObject (NodeRef topic) `shouldBe` "fco:topic"
       showObject (IntVal 17) `shouldBe` "17"
       showObject (TextVal "Hello World") `shouldBe` "\"Hello World\""
-    it "provide printable representations of a triple" $ do
+    it "provide text representations of a triple" $ do
       showTriple (Triple topic type_ (NodeRef class_))
         `shouldBe` "fco:topic rdf:type rdf:Class"
       showTriple (Triple topic label (TextVal "Topic"))
