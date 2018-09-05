@@ -30,7 +30,7 @@ data Node = Node Namespace NodeName
   deriving (Eq, Ord, Show, Generic, Typeable)
 instance Binary Node
 
-data Object = NodeObj NodeName | IntObj Int64 | TextObj Text 
+data Object = NodeRef Node | IntVal Int | TextVal Text 
   deriving (Eq, Ord, Show, Generic, Typeable)
 instance Binary Object
 
