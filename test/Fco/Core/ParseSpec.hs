@@ -43,3 +43,6 @@ spec = do
           `shouldBe` Triple topic label (TextVal "Topic")
       parseTriple nsLookup  "fco:topic fco:relevance 3"
           `shouldBe` Triple topic relevance (IntVal 3)
+    it "parse the text representation of a triple query" $ do
+      parseQuery nsLookup  "fco:topic ? ?"
+          `shouldBe` Query (IsEqual topic) Ignore Ignore

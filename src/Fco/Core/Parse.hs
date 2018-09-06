@@ -13,13 +13,16 @@ import qualified Data.Text as T
 import Fco.Core.Types
 
 
-parseNode :: (Prefix -> Namespace) -> Text -> Node
+type NsLookup = Prefix -> Namespace
+
+
+parseNode :: NsLookup -> Text -> Node
 parseNode nsLookup txt =
     let (prefix, rname) = T.breakOn ":" txt
         ns = nsLookup prefix
     in Node ns (T.tail rname)
 
-parseObject :: (Prefix -> Namespace) -> Text -> Object
+parseObject :: NsLookup -> Text -> Object
 parseObject nsLookup txt = 
     case parseIntVal txt of 
       Just n -> IntVal n
@@ -27,7 +30,7 @@ parseObject nsLookup txt =
             Just txt -> TextVal txt
             _ -> NodeRef $ parseNode nsLookup txt
 
-parseTriple :: (Prefix -> Namespace) -> Text -> Triple
+parseTriple :: NsLookup -> Text -> Triple
 parseTriple nsLookup txt =
     let (st, pt, ot) = splitTripleString txt
         s = parseNode nsLookup st
@@ -35,6 +38,19 @@ parseTriple nsLookup txt =
         o = parseObject nsLookup ot
     in Triple s p o
 
+parseQuery :: NsLookup -> Text -> Query
+parseQuery nsLookup txt =
+    let (st, pt, ot) = splitTripleString txt
+        s = parseQuCrit nsLookup st parseNode
+        p = parseQuCrit nsLookup pt parseNode
+        o = parseQuCrit nsLookup ot parseObject
+    in Query s p o
+
+parseQuCrit :: NsLookup -> Text -> (NsLookup -> Text -> a) -> QuCrit a
+parseQuCrit nsLookup txt pfct = 
+    case txt of
+          "?" -> Ignore
+          _ -> IsEqual $ pfct nsLookup txt
 
 -- helper functions
 
