@@ -16,7 +16,7 @@ class_ = Node rdf "Class"
 label = Node rdfs "label"
 
 topic = Node fco "topic"
-relevance = Node fco "relevance"
+priority = Node fco "priority"
 
 namespaces = [fco, rdf, rdfs]
 

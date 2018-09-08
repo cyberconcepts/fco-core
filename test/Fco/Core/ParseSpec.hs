@@ -10,7 +10,7 @@ import Fco.Core.Parse
 import Fco.Core.Types
 import Fco.Core.TestData (
         namespaces, findNsByPrefix,
-        type_, class_, label, topic, relevance)
+        type_, class_, label, topic, priority)
 
 
 
@@ -41,8 +41,8 @@ spec = do
           `shouldBe` Triple topic type_ (NodeRef class_)
       parseTriple nsLookup  "fco:topic rdfs:label \"Topic\""
           `shouldBe` Triple topic label (TextVal "Topic")
-      parseTriple nsLookup  "fco:topic fco:relevance 3"
-          `shouldBe` Triple topic relevance (IntVal 3)
+      parseTriple nsLookup  "fco:topic fco:priority 3"
+          `shouldBe` Triple topic priority (IntVal 3)
     it "parse the text representation of a triple query" $ do
       parseQuery nsLookup  "fco:topic ? ?"
           `shouldBe` Query (IsEqual topic) Ignore Ignore

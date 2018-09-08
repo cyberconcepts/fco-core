@@ -8,7 +8,7 @@ import Fco.Core.Show
 import Fco.Core.Types
 import Fco.Core.TestData (
         fco, rdf, rdfs,
-        type_, class_, label, topic, relevance)
+        type_, class_, label, topic, priority)
 
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
@@ -33,5 +33,5 @@ spec = do
         `shouldBe` "fco:topic rdf:type rdf:Class"
       showTriple (Triple topic label (TextVal "Topic"))
         `shouldBe` "fco:topic rdfs:label \"Topic\""
-      showTriple (Triple topic relevance (IntVal 3))
-        `shouldBe` "fco:topic fco:relevance 3"
+      showTriple (Triple topic priority (IntVal 3))
+        `shouldBe` "fco:topic fco:priority 3"
