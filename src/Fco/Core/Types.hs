@@ -48,15 +48,3 @@ instance Binary a => Binary (QuCrit a)
 data Query = Query (QuCrit Node) (QuCrit Node) (QuCrit Object)
   deriving (Eq, Show, Generic, Typeable)
 instance Binary Query
-
-
--- message types - actions and responses for (RDF) graphs
-
-data GraphMsg = GraphQuery Query | GraphUpdate Triple | GraphDelete Triple
-  deriving (Show, Generic, Typeable)
-instance Binary GraphMsg
-
-data GraphResp = GraphResp [Triple]
-  deriving (Show, Generic, Typeable)
-instance Binary GraphResp
-

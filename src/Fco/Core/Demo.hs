@@ -21,7 +21,6 @@ import Fco.Core.Messaging (
     CtlChan, CtlMsg (DoQuit, InfoMsg), 
     NotifChan, Notification (RequestQuit),
     runMainProcess)
-import Fco.Core.Types (GraphResp)
 
 
 -- message handlers
