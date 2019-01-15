@@ -8,7 +8,8 @@
 
 module Fco.Core.Config (
   CfgRequest (..), CfgResponse (..), 
-  setupConfig, setupConfigDef) where
+  loadConfig, setupConfig, setupConfigDef,
+  loadPocketConfig) where
 
 import BasicPrelude
 import qualified Data.Text as T
@@ -91,7 +92,7 @@ loadConfig :: FilePath -> IO ConfigStore
 loadConfig path = do
     let extractString = fmap (\(String vs) -> vs)
         extractObject f = fmap (\(Object vo) -> f vo)
-    Just conf <- Yaml.decodeFile path :: IO (Maybe Object)
+    Right conf <- Yaml.decodeFileEither path :: IO (Either Yaml.ParseException Object)
     return $ extractObject extractString conf
 
 
@@ -100,7 +101,7 @@ loadConfig path = do
 loadPocketConfig :: IO (HM.HashMap DSKey Value)
 loadPocketConfig = do
     let path = "../../data/pocket/access.yaml"
-    Just conf <- Yaml.decodeFile path :: IO (Maybe Object)
+    Right conf <- Yaml.decodeFileEither path :: IO (Either Yaml.ParseException Object)
     --return $ maybe HM.empty id conf
     return conf
 
