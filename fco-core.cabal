@@ -1,5 +1,5 @@
 name:                 fco-core
-version:              0.1.0.1
+version:              0.2.0.1
 synopsis:             fco core modules, types and other common stuff
 description:          Please see README.md
 homepage:             https://github.com/cyberconcepts/fco-core
@@ -7,7 +7,7 @@ license:              MIT
 license-file:         LICENSE
 author:               functionalconcepts.org team
 maintainer:           team@functionalconcepts.org
-copyright:            2016 functionalconcepts.org team
+copyright:            2019 functionalconcepts.org team
 category:             Semantic Web
 build-type:           Simple
 -- extra-source-files:
@@ -33,6 +33,7 @@ library
                     , distributed-process
                     , distributed-process-simplelocalnet
                     , extra
+                    , stm
                     , text
                     , unordered-containers
                     , yaml
