@@ -20,6 +20,7 @@ library
                       Fco.Core.Demo
                       Fco.Core.Messaging
                       Fco.Core.Parse
+                      Fco.Core.Service
                       Fco.Core.Show
                       Fco.Core.Struct
                       Fco.Core.Types
@@ -53,6 +54,7 @@ test-suite fco-core-test
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
   other-modules:      Fco.Core.ParseSpec
+  other-modules:      Fco.Core.ServiceSpec
                       Fco.Core.ShowSpec
                       Fco.Core.StructSpec
                       Fco.Core.TestData
