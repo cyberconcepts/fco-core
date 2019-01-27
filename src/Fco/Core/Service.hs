@@ -15,52 +15,54 @@ import Control.Monad.STM
 
 -- service, channel, message types
 
-type Channel = TChan
-type MsgHandler msg = msg -> IO Bool
-type Listener msg = Channel msg -> MsgHandler msg -> IO ()
+type Channel a = TChan (Message a)
+type MsgHandler a = Message a -> IO Bool
+type Listener a = Channel a -> MsgHandler a -> IO ()
 
-data Service msg = Service (Channel msg) ThreadId
+data Message a = Message a | QuitMsg
+
+data Service a = Service (Channel a) ThreadId
 
 
 -- service functions
 
-startService :: Listener msg -> MsgHandler msg -> IO (Service msg)
+startService :: Listener a -> MsgHandler a -> IO (Service a)
 startService listener handler = do
     mailbox <- newChan
     pid <- forkIO $ listener mailbox handler
     return $ Service mailbox pid
 
 
-defaultListener :: Listener msg
+defaultListener :: Listener a
 defaultListener mailbox handler =
   whileM $ do
     msg <- receiveChan mailbox
     handler msg
 
 
-dummyHandler :: MsgHandler msg
+dummyHandler :: MsgHandler a
 dummyHandler msg = return False
 
 
-send :: Service msg -> msg -> IO ()
+send :: Service a -> Message a -> IO ()
 send (Service chan _) msg = sendChan chan msg
 
 
 -- console service
 
-data ConMsg = ConMsg Text | QuitMsg
+type ConMsg = Message Text
 
-conIn :: Service ConMsg -> Listener Text
+conIn :: Service Text -> Listener Text
 conIn client mailbox _ =
   whileM $ do
     line <- getLine
     case line of
       "bye" -> send client QuitMsg >> return False
-      _ -> send client (ConMsg line) >> return True
+      _ -> send client (Message line) >> return True
 
-conOutHandler :: MsgHandler ConMsg
+conOutHandler :: MsgHandler Text
 conOutHandler QuitMsg = return False
-conOutHandler (ConMsg line) = putStrLn line >> return True
+conOutHandler (Message line) = putStrLn line >> return True
 
 demo = do
   conSrv <- startService defaultListener conOutHandler
@@ -72,10 +74,8 @@ demo = do
 newChan :: IO (TChan a)
 newChan = atomically newTChan
 
-receiveChan :: TChan a -> IO a
+receiveChan :: TChan msg -> IO msg
 receiveChan = atomically . readTChan
 
-sendChan :: TChan a -> a -> IO ()
+sendChan :: TChan msg -> msg -> IO ()
 sendChan chan msg = atomically $ writeTChan chan msg
-
-
