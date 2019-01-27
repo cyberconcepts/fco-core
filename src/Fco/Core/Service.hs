@@ -58,19 +58,12 @@ conIn client mailbox _ =
       "bye" -> send client QuitMsg >> return False
       _ -> send client (ConMsg line) >> return True
 
-conOut :: Listener ConMsg
-conOut mailbox _ =
-  whileM $ do
-    msg <- receiveChan mailbox
-    case msg of
-      QuitMsg -> return False
-      ConMsg line -> putStrLn line >> return True
-
+conOutHandler :: MsgHandler ConMsg
 conOutHandler QuitMsg = return False
 conOutHandler (ConMsg line) = putStrLn line >> return True
 
 demo = do
-  conSrv <- startService conOut dummyHandler
+  conSrv <- startService defaultListener conOutHandler
   startService (conIn conSrv) dummyHandler
 
 
