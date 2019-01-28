@@ -12,12 +12,14 @@ import Control.Concurrent.STM (
 import Control.Monad.Extra (whileM)
 import Control.Monad.STM
 
+import Fco.Core.Util (whileDataM)
+
 
 -- service, channel, message types
 
 type Channel a = TChan (Message a)
-type MsgHandler a = Message a -> IO Bool
-type Listener a = Channel a -> MsgHandler a -> IO ()
+type MsgHandler st a = st -> Message a -> IO (Maybe st)
+type Listener st a = Channel a -> MsgHandler st a -> st -> IO ()
 
 data Message a = Message a | QuitMsg
 
@@ -26,47 +28,57 @@ data Service a = Service (Channel a) ThreadId
 
 -- service functions
 
-startService :: Listener a -> MsgHandler a -> IO (Service a)
-startService listener handler = do
+startService :: Listener st a -> MsgHandler st a -> st -> IO (Service a)
+startService listener handler state = do
     mailbox <- newChan
-    pid <- forkIO $ listener mailbox handler
+    pid <- forkIO $ listener mailbox handler state
     return $ Service mailbox pid
 
 
-defaultListener :: Listener a
+defaultListener :: Listener st a
 defaultListener mailbox handler =
-  whileM $ do
+  whileDataM $ \state -> do
     msg <- receiveChan mailbox
-    handler msg
+    handler state msg
 
 
-dummyHandler :: MsgHandler a
-dummyHandler msg = return False
+dummyHandler :: MsgHandler st a
+dummyHandler state (Message _) = return $ Just state
+dummyHandler state msg = defaultCtlHandler state msg
+
+defaultCtlHandler :: MsgHandler st a
+defaultCtlHandler _ QuitMsg = return Nothing
+defaultCtlHandler state _ = return $ Just state
 
 
 send :: Service a -> Message a -> IO ()
 send (Service chan _) msg = sendChan chan msg
+
+receive :: Service a -> IO (Message a)
+receive (Service chan _) = receiveChan chan
 
 
 -- console service
 
 type ConMsg = Message Text
 
-conIn :: Service Text -> Listener Text
-conIn client mailbox _ =
+conIn :: Service Text -> Listener st Text
+conIn parent mailbox _ _ =
   whileM $ do
     line <- getLine
     case line of
-      "bye" -> send client QuitMsg >> return False
-      _ -> send client (Message line) >> return True
+      "bye" -> send parent QuitMsg >> return False
+      _ -> send parent (Message line) >> return True
 
-conOutHandler :: MsgHandler Text
-conOutHandler QuitMsg = return False
-conOutHandler (Message line) = putStrLn line >> return True
+conOutHandler :: MsgHandler st Text
+conOutHandler state (Message line) = do 
+    putStrLn line
+    return $ Just state
+conOutHandler state msg = defaultCtlHandler state msg
 
 demo = do
-  conSrv <- startService defaultListener conOutHandler
-  startService (conIn conSrv) dummyHandler
+  conSrv <- startService defaultListener conOutHandler ()
+  startService (conIn conSrv) dummyHandler ()
 
 
 -- low-level messaging definitions
