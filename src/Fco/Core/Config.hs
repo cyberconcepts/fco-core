@@ -28,6 +28,10 @@ import Fco.Core.Messaging (
     Message, MsgHandler, ParentId, Service (..), ServiceId,
     defaultService, setupService)
 
+import qualified Fco.Core.Service as Svc
+import Fco.Core.Service (Channel,
+    defaultCtlHandler, defaultListener, dummyHandler, startService)
+
 
 type CKey = Text
 type CValue = Text
@@ -35,6 +39,41 @@ type DSKey = Text
 type DataSet = (DSKey, [(CKey, CValue)])
 
 type ConfigStore = HM.HashMap DSKey (HashMap CKey CValue)
+
+
+-- new implementation, using Fco.Core.ServiceId
+
+type ConfigService = Svc.Service ConfigRequest
+
+type ConfigRespChannel = Channel ConfigResponse
+
+data ConfigRequest = ConfigQuery ConfigRespChannel DSKey
+                   | ConfigUpdate DSKey CKey CValue
+
+newtype ConfigResponse = ConfigResponse DataSet
+
+
+startConfigSvcDefault :: IO ConfigService
+startConfigSvcDefault = 
+    (lookupEnv "config-fco") >>= \case
+      Just path -> startConfigSvc path
+      _ -> startConfigSvc "../data/config-fco.yaml"
+
+startConfigSvc :: FilePath -> IO ConfigService
+startConfigSvc path = do
+    configData <- loadConfig path
+    startService defaultListener dummyHandler configData
+
+configHandler :: Svc.MsgHandler ConfigStore ConfigRequest
+configHandler cfgData (Svc.Message (ConfigQuery rchannel key)) = do
+    Svc.sendChan rchannel $ Svc.Message (ConfigResponse (getDataFor key cfgData))
+    return $ Just cfgData
+configHandler cfgData (Svc.Message (ConfigUpdate dskey key value)) = 
+    return $ Just $ updateData dskey key value cfgData
+configHandler state msg = defaultCtlHandler state msg
+
+
+-- legacy stuff, using distributed-process
 
 data CfgRequest = CfgQuery (SendPort CfgResponse) DSKey 
                 | CfgUpdate DSKey CKey CValue
