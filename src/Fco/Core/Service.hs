@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Fco.Core.Service where
 
@@ -37,9 +38,8 @@ startService listener handler state = do
 
 defaultListener :: Listener st a
 defaultListener mailbox handler =
-  whileDataM $ \state -> do
-    msg <- receiveChan mailbox
-    handler state msg
+  whileDataM $ \state ->
+    receiveChan mailbox >>= (handler state)
 
 
 dummyHandler :: MsgHandler st a
@@ -62,23 +62,19 @@ receive (Service chan _) = receiveChan chan
 
 type ConMsg = Message Text
 
-conIn :: Service Text -> Listener st Text
+conIn :: Service Text -> Listener () Text
 conIn parent mailbox _ _ =
-  whileM $ do
-    line <- getLine
-    case line of
-      "bye" -> send parent QuitMsg >> return False
-      _ -> send parent (Message line) >> return True
+    whileM $ getLine >>= \case
+        "bye" -> send parent QuitMsg >> return False
+        line -> send parent (Message line) >> return True
 
-conOutHandler :: MsgHandler st Text
-conOutHandler state (Message line) = do 
-    putStrLn line
-    return $ Just state
-conOutHandler state msg = defaultCtlHandler state msg
+conOutHandler :: MsgHandler () Text
+conOutHandler _ (Message line) = putStrLn line >> (return $ Just ())
+conOutHandler _ msg = defaultCtlHandler () msg
 
 demo = do
-  conSrv <- startService defaultListener conOutHandler ()
-  startService (conIn conSrv) dummyHandler ()
+    conSrv <- startService defaultListener conOutHandler ()
+    startService (conIn conSrv) dummyHandler ()
 
 
 -- low-level messaging definitions
