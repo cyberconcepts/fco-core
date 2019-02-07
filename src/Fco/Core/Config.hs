@@ -62,7 +62,7 @@ startConfigSvcDefault =
 startConfigSvc :: FilePath -> IO ConfigService
 startConfigSvc path = do
     configData <- loadConfig path
-    startService defaultListener dummyHandler configData
+    startService defaultListener configHandler configData
 
 configHandler :: Svc.MsgHandler ConfigStore ConfigRequest
 configHandler cfgData (Svc.Message (ConfigQuery rchannel key)) = do
