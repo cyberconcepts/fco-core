@@ -7,6 +7,7 @@
 --
 
 module Fco.Core.Config (
+  startConfigSvc, startConfigSvcDefault,
   CfgRequest (..), CfgResponse (..), 
   loadConfig, setupConfig, setupConfigDef,
   loadPocketConfig) where
