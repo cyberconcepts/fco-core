@@ -1,5 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Fco.Core.Service where
 
@@ -8,8 +11,8 @@ import qualified Data.Text as T
 
 import Control.Concurrent (ThreadId, forkIO)
 import Control.Concurrent.STM (
-    TChan,
-    atomically, newTChan, readTChan, writeTChan)
+    STM, TChan,
+    atomically, newTChan, readTChan, tryReadTChan, writeTChan)
 import Control.Monad.Extra (whileM)
 import Control.Monad.STM
 
@@ -62,28 +65,43 @@ receive (Service chan _) = receiveChan chan
 
 type ConMsg = Message Text
 
-conIn :: Service Text -> Listener () Text
-conIn parent mailbox _ _ =
+conIn :: Channel Text -> Listener () Text
+conIn parentChan mailbox _ _ =
     whileM $ getLine >>= \case
-        "bye" -> send parent QuitMsg >> return False
-        line -> send parent (Message line) >> return True
+        "bye" -> sendChan parentChan QuitMsg >> return False
+        line -> sendChan parentChan (Message line) >> return True
 
 conOutHandler :: MsgHandler () Text
 conOutHandler _ (Message line) = putStrLn line >> (return $ Just ())
 conOutHandler _ msg = defaultCtlHandler () msg
 
 demo = do
-    conSrv <- startService defaultListener conOutHandler ()
-    startService (conIn conSrv) dummyHandler ()
+    --conSrv <- startService defaultListener conOutHandler ()
+    Service outChan _ <- startService defaultListener conOutHandler ()
+    startService (conIn outChan) dummyHandler ()
 
 
 -- low-level messaging definitions
+
+data HandledChannel = forall a. HandledChannel (Channel a) (a -> IO Bool)
 
 newChan :: IO (TChan a)
 newChan = atomically newTChan
 
 receiveChan :: TChan msg -> IO msg
 receiveChan = atomically . readTChan
+
+receiveChanAny :: [HandledChannel] -> IO Bool
+receiveChanAny hchans =
+    join (atomically $ processHChans hchans)
+  where
+      processHChans :: [HandledChannel] -> STM (IO Bool)
+      processHChans [] = retry
+      processHChans (HandledChannel chan handler : rest) = do
+          msg <- tryReadTChan chan 
+          case msg of
+              Nothing -> processHChans rest
+              Just (Message a) -> return (handler a)
 
 sendChan :: TChan msg -> msg -> IO ()
 sendChan chan msg = atomically $ writeTChan chan msg
