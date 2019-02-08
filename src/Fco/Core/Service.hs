@@ -1,8 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes #-}
 
 module Fco.Core.Service where
 
@@ -83,7 +81,7 @@ demo = do
 
 -- low-level messaging definitions
 
-data HandledChannel = forall a. HandledChannel (Channel a) (a -> IO Bool)
+data HandledChannel = forall a. HandledChannel (Channel a) (Message a -> IO Bool)
 
 newChan :: IO (TChan a)
 newChan = atomically newTChan
@@ -101,7 +99,7 @@ receiveChanAny hchans =
           msg <- tryReadTChan chan 
           case msg of
               Nothing -> processHChans rest
-              Just (Message a) -> return (handler a)
+              Just msg -> return (handler msg)
 
 sendChan :: TChan msg -> msg -> IO ()
 sendChan chan msg = atomically $ writeTChan chan msg
