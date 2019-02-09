@@ -1,6 +1,6 @@
 module Main where
 
-import Fco.Core.Demo (run)
+import Fco.Core.Service (demo)
 
 main :: IO ()
-main = run
+main = demo

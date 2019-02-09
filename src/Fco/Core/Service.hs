@@ -23,7 +23,7 @@ type Channel a = TChan (Message a)
 type MsgHandler st a = st -> Message a -> IO (Maybe st)
 type Listener st a = Channel a -> MsgHandler st a -> st -> IO ()
 
-data Message a = Message a | QuitMsg
+data Message a = Message a | QuitMsg deriving Show
 
 data Service a = Service (Channel a) ThreadId
 
@@ -73,10 +73,15 @@ conOutHandler :: MsgHandler () Text
 conOutHandler _ (Message line) = putStrLn line >> (return $ Just ())
 conOutHandler _ msg = defaultCtlHandler () msg
 
+demo :: IO ()
 demo = do
-    --conSrv <- startService defaultListener conOutHandler ()
+    conInChan <- newChan
     Service outChan _ <- startService defaultListener conOutHandler ()
-    startService (conIn outChan) dummyHandler ()
+    startService (conIn conInChan) dummyHandler ()
+    whileM $ (receiveChan conInChan) >>= \case
+        Message line -> (sendChan outChan $ Message line) >> return True
+        QuitMsg -> (sendChan outChan QuitMsg) >> return False
+        --_ -> return True
 
 
 -- low-level messaging definitions

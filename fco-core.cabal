@@ -1,5 +1,5 @@
 name:                 fco-core
-version:              0.2.0.1
+version:              0.2.0.2
 synopsis:             fco core modules, types and other common stuff
 description:          Please see README.md
 homepage:             https://github.com/cyberconcepts/fco-core
@@ -16,9 +16,6 @@ cabal-version:        >=1.10
 library
   hs-source-dirs:     src
   exposed-modules:    Fco.Core.Config
-                      Fco.Core.Console
-                      Fco.Core.Demo
-                      Fco.Core.Messaging
                       Fco.Core.Parse
                       Fco.Core.Service
                       Fco.Core.Show
@@ -31,8 +28,6 @@ library
                     , binary
                     , containers
                     , directory
-                    , distributed-process
-                    , distributed-process-simplelocalnet
                     , extra
                     , stm
                     , text
