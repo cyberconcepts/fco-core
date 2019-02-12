@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
-{-# LANGUAGE DeriveDataTypeable, DeriveGeneric #-}
 
 -- |
 --
@@ -9,9 +8,6 @@ module Fco.Core.Types where
 
 import BasicPrelude
 
-import Data.Binary (Binary)
-import GHC.Generics (Generic)
-
 
 -- RDF triples
 
@@ -19,32 +15,26 @@ type IRI = Text
 type Prefix = Text
 
 data Namespace = Namespace IRI Prefix 
-  deriving (Eq, Ord, Show, Generic, Typeable)
-instance Binary Namespace
+  deriving (Eq, Ord, Show)
 
 type NodeName = Text
 type Subject = Node
 type Predicate = Node
 
 data Node = Node Namespace NodeName 
-  deriving (Eq, Ord, Show, Generic, Typeable)
-instance Binary Node
+  deriving (Eq, Ord, Show)
 
 data Object = NodeRef Node | IntVal Int | TextVal Text 
-  deriving (Eq, Ord, Show, Generic, Typeable)
-instance Binary Object
+  deriving (Eq, Ord, Show)
 
 data Triple = Triple Subject Predicate Object 
-  deriving (Eq, Ord, Show, Generic, Typeable)
-instance Binary Triple
+  deriving (Eq, Ord, Show)
 
 
 -- query types
 
 data QuCrit a = IsEqual a | Ignore 
-  deriving (Eq, Show, Generic, Typeable)
-instance Binary a => Binary (QuCrit a)
+  deriving (Eq, Show)
 
 data Query = Query (QuCrit Node) (QuCrit Node) (QuCrit Object)
-  deriving (Eq, Show, Generic, Typeable)
-instance Binary Query
+  deriving (Eq, Show)

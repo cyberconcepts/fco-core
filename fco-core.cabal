@@ -16,6 +16,7 @@ cabal-version:        >=1.10
 library
   hs-source-dirs:     src
   exposed-modules:    Fco.Core.Config
+                      Fco.Core.Console
                       Fco.Core.Parse
                       Fco.Core.Service
                       Fco.Core.Show
@@ -25,7 +26,6 @@ library
   build-depends:      base >= 4.7 && < 5
                     , basic-prelude
                     , aeson
-                    , binary
                     , containers
                     , directory
                     , extra

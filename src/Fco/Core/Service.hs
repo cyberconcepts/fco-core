@@ -59,31 +59,6 @@ receive :: Service a -> IO (Message a)
 receive (Service chan _) = receiveChan chan
 
 
--- console service
-
-type ConMsg = Message Text
-
-conIn :: Channel Text -> Listener () Text
-conIn parentChan mailbox _ _ =
-    whileM $ getLine >>= \case
-        "bye" -> sendChan parentChan QuitMsg >> return False
-        line -> sendChan parentChan (Message line) >> return True
-
-conOutHandler :: MsgHandler () Text
-conOutHandler _ (Message line) = putStrLn line >> (return $ Just ())
-conOutHandler _ msg = defaultCtlHandler () msg
-
-demo :: IO ()
-demo = do
-    conInChan <- newChan
-    Service outChan _ <- startService defaultListener conOutHandler ()
-    startService (conIn conInChan) dummyHandler ()
-    whileM $ (receiveChan conInChan) >>= \case
-        Message line -> (sendChan outChan $ Message line) >> return True
-        QuitMsg -> (sendChan outChan QuitMsg) >> return False
-        --_ -> return True
-
-
 -- low-level messaging definitions
 
 data HandledChannel = forall a. HandledChannel (Channel a) (Message a -> IO Bool)

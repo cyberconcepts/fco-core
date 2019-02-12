@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
-{-# LANGUAGE DeriveDataTypeable, DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
 -- |
