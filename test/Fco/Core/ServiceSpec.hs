@@ -20,5 +20,5 @@ spec = do
   describe "channel" $ do
     it "accepts and delivers a message" $ do
       c1 <- newChan
-      sendChan c1 7 `shouldReturn` ()
-      receiveChan c1 `shouldReturn` 7
+      sendChan c1 (Message 7) `shouldReturn` ()
+      receiveChan c1 `shouldReturn` (Message 7)

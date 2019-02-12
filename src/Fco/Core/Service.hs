@@ -11,7 +11,6 @@ import Control.Concurrent (ThreadId, forkIO)
 import Control.Concurrent.STM (
     STM, TChan,
     atomically, newTChan, readTChan, tryReadTChan, writeTChan)
-import Control.Monad.Extra (whileM)
 import Control.Monad.STM
 
 import Fco.Core.Util (whileDataM)
@@ -23,9 +22,12 @@ type Channel a = TChan (Message a)
 type MsgHandler st a = st -> Message a -> IO (Maybe st)
 type Listener st a = Channel a -> MsgHandler st a -> st -> IO ()
 
-data Message a = Message a | QuitMsg deriving Show
+data Message a = Message a | QuitMsg 
+  deriving (Eq, Ord, Show)
 
 data Service a = Service (Channel a) ThreadId
+
+data HandledChannel st = forall a. HandledChannel (Channel a) (MsgHandler st a)
 
 
 -- service functions
@@ -61,25 +63,26 @@ receive (Service chan _) = receiveChan chan
 
 -- low-level messaging definitions
 
-data HandledChannel = forall a. HandledChannel (Channel a) (Message a -> IO Bool)
+--data HandledChannel = forall a. HandledChannel (Channel a) (Message a -> IO Bool)
 
-newChan :: IO (TChan a)
+newChan :: IO (Channel a)
 newChan = atomically newTChan
 
-receiveChan :: TChan msg -> IO msg
+receiveChan :: Channel a -> IO (Message a)
 receiveChan = atomically . readTChan
 
-receiveChanAny :: [HandledChannel] -> IO Bool
-receiveChanAny hchans =
-    join (atomically $ processHChans hchans)
+--receiveChanAny :: [HandledChannel] -> IO Bool
+receiveChanAny :: st -> [HandledChannel st] -> IO (Maybe st)
+receiveChanAny state hchans =
+    join (atomically $ processHChans state hchans)
   where
-      processHChans :: [HandledChannel] -> STM (IO Bool)
-      processHChans [] = retry
-      processHChans (HandledChannel chan handler : rest) = do
+      processHChans :: st -> [HandledChannel st] -> STM (IO (Maybe st))
+      processHChans _ [] = retry
+      processHChans state (HandledChannel chan handler : rest) = do
           msg <- tryReadTChan chan 
           case msg of
-              Nothing -> processHChans rest
-              Just msg -> return (handler msg)
+              Nothing -> processHChans state rest
+              Just msg -> return (handler state msg)
 
-sendChan :: TChan msg -> msg -> IO ()
+sendChan :: Channel a -> Message a -> IO ()
 sendChan chan msg = atomically $ writeTChan chan msg
