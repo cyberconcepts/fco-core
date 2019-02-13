@@ -18,16 +18,17 @@ import Fco.Core.Util (whileDataM)
 
 -- service, channel, message types
 
+data Message a = Message a | QuitMsg 
+  deriving (Eq, Ord, Show)
+
 type Channel a = TChan (Message a)
 type MsgHandler st a = st -> Message a -> IO (Maybe st)
 type Listener st a = Channel a -> MsgHandler st a -> st -> IO ()
 
-data Message a = Message a | QuitMsg 
-  deriving (Eq, Ord, Show)
+data HandledChannel st = forall a. HandledChannel (Channel a) (MsgHandler st a)
+type MultiListener st = [HandledChannel st] -> st -> IO ()
 
 data Service a = Service (Channel a) ThreadId
-
-data HandledChannel st = forall a. HandledChannel (Channel a) (MsgHandler st a)
 
 
 -- service functions
@@ -43,6 +44,10 @@ defaultListener :: Listener st a
 defaultListener mailbox handler =
   whileDataM $ \state ->
     receiveChan mailbox >>= (handler state)
+
+multiListener :: MultiListener st
+multiListener hChans = 
+  whileDataM $ \state -> receiveChanAny state hChans
 
 
 dummyHandler :: MsgHandler st a
@@ -61,9 +66,7 @@ receive :: Service a -> IO (Message a)
 receive (Service chan _) = receiveChan chan
 
 
--- low-level messaging definitions
-
---data HandledChannel = forall a. HandledChannel (Channel a) (Message a -> IO Bool)
+-- messaging functions
 
 newChan :: IO (Channel a)
 newChan = atomically newTChan
@@ -71,7 +74,6 @@ newChan = atomically newTChan
 receiveChan :: Channel a -> IO (Message a)
 receiveChan = atomically . readTChan
 
---receiveChanAny :: [HandledChannel] -> IO Bool
 receiveChanAny :: st -> [HandledChannel st] -> IO (Maybe st)
 receiveChanAny state hchans =
     join (atomically $ processHChans state hchans)
