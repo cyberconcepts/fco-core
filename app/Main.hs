@@ -1,6 +1,6 @@
 module Main where
 
-import Fco.Core.Console (demo)
+--import Fco.Core... (...)
 
 main :: IO ()
-main = demo
+main = putStrLn "Not used"
